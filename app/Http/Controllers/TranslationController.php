@@ -30,6 +30,11 @@ class TranslationController extends Controller
             'tags' => ['array'],
         ]);
 
+        // Enforce unique (key, locale)
+        $request->validate([
+            'key' => ['required', 'string', 'max:255', \Illuminate\Validation\Rule::unique('translations', 'key')->where(fn($q) => $q->where('locale', $validated['locale']))],
+        ]);
+
         $translation = $this->service->create($validated);
         return response()->json($translation->load('tags'), 201);
     }
@@ -48,6 +53,15 @@ class TranslationController extends Controller
             'context' => ['nullable', 'array'],
             'tags' => ['nullable', 'array'],
         ]);
+
+        if (array_key_exists('key', $validated) || array_key_exists('locale', $validated)) {
+            $newKey = $validated['key'] ?? $translation->key;
+            $newLocale = $validated['locale'] ?? $translation->locale;
+            $request->merge(['key' => $newKey, 'locale' => $newLocale]);
+            $request->validate([
+                'key' => [\Illuminate\Validation\Rule::unique('translations', 'key')->where(fn($q) => $q->where('locale', $newLocale))->ignore($translation->id)],
+            ]);
+        }
 
         $updated = $this->service->update($translation, $validated);
         return response()->json($updated->load('tags'));

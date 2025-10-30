@@ -47,6 +47,53 @@ class TranslationApiTest extends TestCase
         $search->assertOk()->assertJsonFragment(['value' => 'Hello']);
     }
 
+    public function test_unique_key_locale_validation(): void
+    {
+        $token = $this->authenticate();
+        $payload = [
+            'key' => 'dup.key', 'locale' => 'en', 'value' => 'One'
+        ];
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->postJson('/api/translations', $payload)->assertCreated();
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->postJson('/api/translations', $payload)->assertStatus(422);
+    }
+
+    public function test_update_delete_and_tag_filter(): void
+    {
+        $token = $this->authenticate();
+        $create = $this->withHeader('Authorization', 'Bearer '.$token)
+            ->postJson('/api/translations', [
+                'key' => 'update.case', 'locale' => 'en', 'value' => 'Old', 'tags' => ['web','desktop']
+            ])->assertCreated();
+        $id = $create->json('id');
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->patchJson('/api/translations/'.$id, ['value' => 'New'])
+            ->assertOk()->assertJsonFragment(['value' => 'New']);
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/translations?tags=desktop')
+            ->assertOk()->assertJsonFragment(['key' => 'update.case']);
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->deleteJson('/api/translations/'.$id)->assertOk();
+    }
+
+    public function test_sqlite_like_fallback_for_content_search(): void
+    {
+        // Using sqlite in tests; ensure LIKE works without FULLTEXT
+        $token = $this->authenticate();
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->postJson('/api/translations', [
+                'key' => 'content.check', 'locale' => 'en', 'value' => 'Hello Falling Back FULLTEXT'
+            ])->assertCreated();
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/translations?content=Falling')
+            ->assertOk()->assertJsonFragment(['key' => 'content.check']);
+    }
+
     public function test_export_endpoint_is_fast(): void
     {
         Translation::factory()->count(2000)->create(['locale' => 'en']);

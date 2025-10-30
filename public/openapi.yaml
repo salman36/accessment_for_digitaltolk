@@ -4,6 +4,44 @@ info:
   version: 1.0.0
 servers:
   - url: /api
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Translation:
+      type: object
+      properties:
+        id: { type: integer }
+        key: { type: string }
+        locale: { type: string }
+        value: { type: string }
+        context: { type: object }
+        tags:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              name: { type: string }
+              slug: { type: string }
+    TranslationCreate:
+      type: object
+      required: [key, locale, value]
+      properties:
+        key: { type: string }
+        locale: { type: string }
+        value: { type: string }
+        context: { type: object }
+        tags:
+          type: array
+          items: { type: string }
+    Token:
+      type: object
+      properties:
+        token: { type: string }
 paths:
   /auth/register:
     post:
@@ -20,7 +58,12 @@ paths:
                 email: { type: string, format: email }
                 password: { type: string, format: password }
       responses:
-        '201': { description: Created }
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Token'
   /auth/login:
     post:
       summary: Login and receive a JWT token
@@ -35,10 +78,17 @@ paths:
                 email: { type: string, format: email }
                 password: { type: string, format: password }
       responses:
-        '200': { description: OK }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Token'
   /translations:
     get:
       summary: List/search translations
+      security:
+        - bearerAuth: []
       parameters:
         - in: query
           name: locale
@@ -56,24 +106,26 @@ paths:
         '200': { description: OK }
     post:
       summary: Create translation
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [key, locale, value]
-              properties:
-                key: { type: string }
-                locale: { type: string }
-                value: { type: string }
-                context: { type: object }
-                tags: { type: array, items: { type: string } }
+              $ref: '#/components/schemas/TranslationCreate'
       responses:
-        '201': { description: Created }
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Translation'
   /translations/{id}:
     get:
       summary: Show translation
+      security:
+        - bearerAuth: []
       parameters:
         - in: path
           name: id
@@ -83,6 +135,8 @@ paths:
         '200': { description: OK }
     put:
       summary: Update translation
+      security:
+        - bearerAuth: []
       parameters:
         - in: path
           name: id
@@ -97,6 +151,8 @@ paths:
         '200': { description: OK }
     delete:
       summary: Delete translation
+      security:
+        - bearerAuth: []
       parameters:
         - in: path
           name: id

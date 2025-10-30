@@ -39,8 +39,18 @@ class TranslationService
             $query->where('key', 'like', "%{$filters['key']}%");
         }
         if (!empty($filters['content'])) {
-            // Leverage FULLTEXT if available, fallback to LIKE
-            $query->whereFullText('value', $filters['content']);
+            $term = $filters['content'];
+            try {
+                $driver = config('database.connections.' . config('database.default') . '.driver');
+                if ($driver === 'mysql') {
+                    $query->whereFullText('value', $term);
+                } else {
+                    $query->where('value', 'like', "%{$term}%");
+                }
+            } catch (\Throwable $e) {
+                // Fallback for SQLite / others
+                $query->where('value', 'like', "%{$term}%");
+            }
         }
         if (!empty($filters['tags'])) {
             $tagSlugs = is_array($filters['tags']) ? $filters['tags'] : explode(',', (string) $filters['tags']);

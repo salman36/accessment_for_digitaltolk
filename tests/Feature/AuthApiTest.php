@@ -24,6 +24,22 @@ class AuthApiTest extends TestCase
         ]);
         $login->assertOk()->assertJsonStructure(['token']);
     }
+
+    public function test_me_and_logout(): void
+    {
+        $reg = $this->postJson('/api/auth/register', [
+            'name' => 'User',
+            'email' => 'user@example.com',
+            'password' => 'password123',
+        ])->assertStatus(201);
+        $token = $reg->json('token');
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/auth/me')->assertOk();
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->postJson('/api/auth/logout')->assertOk();
+    }
 }
 
 
